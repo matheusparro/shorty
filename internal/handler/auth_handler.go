@@ -5,6 +5,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	"log"
+
 	"github.com/matheusparro/shorty/internal/domain"
 	"github.com/matheusparro/shorty/internal/service"
 )
@@ -28,19 +30,24 @@ type loginRequest struct {
 }
 
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
+	log.Println("CHEGUEI NO REGISTER")
 	var req registerRequest
 	if err := c.BodyParser(&req); err != nil {
+			log.Println("CHEGUEI NO erro 1")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid payload"})
 	}
 
 	res, err := h.auth.Register(c.Context(), req.Email, req.Password)
 	if err != nil {
+			log.Println("CHEGUEI NO erro 2")
 		return h.mapError(c, err)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"userId": res.UserID,
-		"email":  res.Email,
+	return c.JSON(fiber.Map{
+		"userId":      res.UserID,
+		"email":       res.Email,
+		"accessToken": res.AccessToken,
+		"accessExp":   res.AccessExp,
 	})
 }
 
@@ -56,8 +63,10 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"userId": res.UserID,
-		"email":  res.Email,
+		"userId":      res.UserID,
+		"email":       res.Email,
+		"accessToken": res.AccessToken,
+		"accessExp":   res.AccessExp,
 	})
 }
 
@@ -71,7 +80,6 @@ func (h *AuthHandler) mapError(c *fiber.Ctx, err error) error {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
 
 	case errors.Is(err, domain.ErrInvalidCredentials):
-		// não vaza detalhe
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid credentials"})
 
 	default:

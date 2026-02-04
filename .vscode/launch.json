@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Shorty API",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/api-server",
+      "envFile": "${workspaceFolder}/configs/.env",
+      "args": [],
+      "showLog": true
+    }
+  ]
+}

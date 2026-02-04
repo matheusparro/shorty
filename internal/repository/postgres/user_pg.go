@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/matheusparro/shorty/internal/domain"
@@ -33,9 +35,10 @@ func (r *UserPG) Create(ctx context.Context, user *domain.User) error {
 		Scan(&id, &createdAt, &updatedAt)
 
 	if err != nil {
-		// Unique violation → email já usado (mapear pra domain)
-		// pgx não expõe SQLSTATE de forma super padrão sem checar o erro concreto,
-		// então por enquanto: trate “email já existe” no handler/service se quiser refinar depois.
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return domain.ErrEmailAlreadyUsed
+		}
 		return err
 	}
 

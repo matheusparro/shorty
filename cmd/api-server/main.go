@@ -8,12 +8,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/joho/godotenv"
+
 	"github.com/matheusparro/shorty/internal/config"
 	"github.com/matheusparro/shorty/internal/db"
+	httpserver "github.com/matheusparro/shorty/internal/http"
 )
 
 func main() {
@@ -30,20 +29,9 @@ func main() {
 	}
 	defer pool.Close()
 
-	app := fiber.New(fiber.Config{
-		AppName:      "shorty",
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
-	})
+	app := httpserver.NewApp()
+	httpserver.RegisterRoutes(app, pool, &cfg)
 
-	app.Use(logger.New())
-	app.Use(recover.New())
-
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"status": "ok"})
-	})
-
-	// graceful shutdown
 	go func() {
 		if err := app.Listen(":" + cfg.AppPort); err != nil {
 			log.Println(err)
