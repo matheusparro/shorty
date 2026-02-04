@@ -15,6 +15,7 @@ type Config struct {
 	DBName     string
 	DBSSLMode  string
 	JWTSecret string
+	BaseURL  string
 }
 
 func Load() Config {
@@ -27,6 +28,7 @@ func Load() Config {
 		DBName:    getEnv("DB_NAME", "shorty"),
 		DBSSLMode: getEnv("DB_SSLMODE", "disable"),
 		JWTSecret: os.Getenv("JWT_SECRET"),
+		BaseURL:  getEnv("BASE_URL", "http://localhost:8080"),
 	}
 }
 

@@ -2,12 +2,16 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/matheusparro/shorty/internal/domain"
 )
+var ErrNotFound = errors.New("short url not found")
+
 type ShortURLPG struct {
 	db *pgxpool.Pool
 }
@@ -71,3 +75,48 @@ func (r *ShortURLPG) FindByShortCode(ctx context.Context, shortCode string) (*do
 
 	return &su, nil
 }
+
+func (r *ShortURLPG) FindActiveURLForRedirect(ctx context.Context, shortCode string) (string, error) {
+	const q = `
+		SELECT original_url
+		FROM short_urls
+		WHERE short_code = $1
+		  AND is_active = true
+		  AND (expires_at IS NULL OR expires_at > now())
+		LIMIT 1;
+	`
+
+	var originalURL string
+	err := r.db.QueryRow(ctx, q, shortCode).Scan(&originalURL)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrNotFound
+		}
+		return "", err
+	}
+
+	return originalURL, nil
+}
+
+func (r *ShortURLPG) Inactivate(ctx context.Context, shortCode, userID string) error {
+	const q = `
+		update short_urls
+		set is_active = false, updated_at = now()
+		where short_code = $1
+		  and user_id = $2
+	`
+	_, err := r.db.Exec(ctx, q, shortCode, userID)
+	return err
+}
+
+func (r *ShortURLPG) IncrementVisit(ctx context.Context, shortCode string) error {
+	const q = `
+		update short_urls
+		set visit_count = visit_count + 1, updated_at = now()
+		where short_code = $1
+	`
+	_, err := r.db.Exec(ctx, q, shortCode)
+	return err
+}
+
+

@@ -18,9 +18,8 @@ type ShortURL struct {
 }
 
 var ErrInvalidExpiration = errors.New("invalid expiration")
-
 func NewShortURL(originalURL, shortCode, userID string, expiresAt *time.Time) (*ShortURL, error) {
-	if originalURL == "" || shortCode == "" {
+	if originalURL == "" || shortCode == "" || userID == "" {
 		return nil, ErrInvalidShortURL
 	}
 
@@ -33,7 +32,10 @@ func NewShortURL(originalURL, shortCode, userID string, expiresAt *time.Time) (*
 		OriginalURL: originalURL,
 		ShortCode:   shortCode,
 		UserID:      userID,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 		ExpiresAt:   expiresAt,
+		VisitCount:  0,
 		IsActive:    true,
 	}, nil
 }
