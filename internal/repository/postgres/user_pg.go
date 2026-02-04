@@ -50,7 +50,7 @@ func (r *UserPG) Create(ctx context.Context, user *domain.User) error {
 
 func (r *UserPG) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	const q = `
-		select id, email, password_hash, created_at, updated_at
+		select id, email, password_hash, role, created_at, updated_at
 		from users
 		where email = $1
 	`
@@ -59,12 +59,13 @@ func (r *UserPG) FindByEmail(ctx context.Context, email string) (*domain.User, e
 		id           string
 		emailStr     string
 		passwordHash string
+		role         string
 		createdAt    time.Time
 		updatedAt    time.Time
 	)
 
 	err := r.db.QueryRow(ctx, q, email).
-		Scan(&id, &emailStr, &passwordHash, &createdAt, &updatedAt)
+		Scan(&id, &emailStr, &passwordHash, &role, &createdAt, &updatedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrUserNotFound
@@ -82,6 +83,7 @@ func (r *UserPG) FindByEmail(ctx context.Context, email string) (*domain.User, e
 		ID:           id,
 		Email:        em,
 		PasswordHash: passwordHash,
+		Role:         role,
 		CreatedAt:    createdAt,
 		UpdatedAt:    updatedAt,
 	}

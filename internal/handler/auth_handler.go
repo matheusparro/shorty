@@ -54,7 +54,9 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	var req loginRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid payload"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid payload",
+		})
 	}
 
 	res, err := h.auth.Login(c.Context(), req.Email, req.Password)
@@ -62,13 +64,25 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return h.mapError(c, err)
 	}
 
+	c.Cookie(&fiber.Cookie{
+		Name:     "refresh_token",
+		Value:    res.RefreshToken,
+		Expires:  res.RefreshExp,
+		HTTPOnly: true,
+		Secure:   false, // true em prod (https)
+		SameSite: "Lax",
+		Path:     "/api/v1/auth",
+	})
+
 	return c.JSON(fiber.Map{
 		"userId":      res.UserID,
 		"email":       res.Email,
+		"role":        res.Role,
 		"accessToken": res.AccessToken,
 		"accessExp":   res.AccessExp,
 	})
 }
+
 
 func (h *AuthHandler) mapError(c *fiber.Ctx, err error) error {
 	switch {

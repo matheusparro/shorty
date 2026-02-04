@@ -9,22 +9,34 @@ import (
 	"github.com/matheusparro/shorty/internal/domain"
 	"github.com/matheusparro/shorty/internal/repository"
 	"github.com/matheusparro/shorty/internal/security/jwt"
+	"github.com/matheusparro/shorty/internal/security/refresh"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct {
-	users     repository.UserRepository
-	jwtSecret string
-	accessTTL time.Duration
+	users      repository.UserRepository
+	refresh    repository.RefreshTokenRepository
+	jwtSecret  string
+	accessTTL  time.Duration
+	refreshTTL time.Duration
 }
 
-func NewAuthService(users repository.UserRepository, jwtSecret string, accessTTL time.Duration) *AuthService {
+func NewAuthService(
+	users repository.UserRepository,
+	refresh repository.RefreshTokenRepository,
+	jwtSecret string,
+	accessTTL time.Duration,
+	refreshTTL time.Duration,
+) *AuthService {
 	return &AuthService{
-		users:     users,
-		jwtSecret: jwtSecret,
-		accessTTL: accessTTL,
+		users:      users,
+		refresh:    refresh,
+		jwtSecret:  jwtSecret,
+		accessTTL:  accessTTL,
+		refreshTTL: refreshTTL,
 	}
 }
+
 
 type RegisterResult struct {
 	UserID      string
@@ -34,11 +46,15 @@ type RegisterResult struct {
 }
 
 type LoginResult struct {
-	UserID      string
-	Email       string
-	AccessToken string
-	AccessExp   time.Time
+	UserID       string
+	Email        string
+	Role         string
+	AccessToken  string
+	AccessExp    time.Time
+	RefreshToken string
+	RefreshExp   time.Time
 }
+
 
 func (s *AuthService) Register(ctx context.Context, emailRaw, password string) (*RegisterResult, error) {
 	// regra de domínio: senha mínima (plain)
@@ -86,7 +102,7 @@ func (s *AuthService) Register(ctx context.Context, emailRaw, password string) (
 		return nil, err
 	}
 
-	token, exp, err := jwt.SignAccessToken(s.jwtSecret, user.ID, user.Email.String(), s.accessTTL)
+	token, exp, err := jwt.SignAccessToken(s.jwtSecret, user.ID, user.Role, user.Email.String(), s.accessTTL)
 	if err != nil {
 		return nil, err
 	}
@@ -115,15 +131,39 @@ func (s *AuthService) Login(ctx context.Context, emailRaw, password string) (*Lo
 		return nil, domain.ErrInvalidCredentials
 	}
 
-	token, exp, err := jwt.SignAccessToken(s.jwtSecret, user.ID, user.Email.String(), s.accessTTL)
+	// 1) access token (JWT curto)
+	accessToken, accessExp, err := jwt.SignAccessToken(
+		s.jwtSecret,
+		user.ID,
+		user.Email.String(),
+		user.Role,
+		s.accessTTL,
+	)
 	if err != nil {
 		return nil, err
 	}
 
+	// 2) refresh token (longo) + salvar HASH no banco
+	refreshRaw, err := refresh.NewToken()
+	if err != nil {
+		return nil, err
+	}
+
+	refreshHash := refresh.Hash(refreshRaw, s.jwtSecret)
+	refreshExp := time.Now().UTC().Add(s.refreshTTL)
+
+	if err := s.refresh.Save(ctx, user.ID, refreshHash, refreshExp); err != nil {
+		return nil, err
+	}
+
 	return &LoginResult{
-		UserID:      user.ID,
-		Email:       user.Email.String(),
-		AccessToken: token,
-		AccessExp:   exp,
+		UserID:       user.ID,
+		Email:        user.Email.String(),
+		Role:         user.Role,
+		AccessToken:  accessToken,
+		AccessExp:    accessExp,
+		RefreshToken: refreshRaw,  // handler pode colocar em cookie HttpOnly
+		RefreshExp:   refreshExp,
 	}, nil
 }
+

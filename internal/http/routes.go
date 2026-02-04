@@ -19,13 +19,19 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool, cfg *config.Config) {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
 
-	// dependencies
 	userRepo := postgres.NewUserPG(db)
+	refreshRepo := postgres.NewRefreshTokenPG(db)
 
-	// access token TTL (por enquanto fixo)
 	accessTTL := 15 * time.Minute
+	refreshTTL := 15 * 24 * time.Hour // 15 dias (exemplo)
 
-	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, accessTTL)
+	authSvc := service.NewAuthService(
+		userRepo,
+		refreshRepo,
+		cfg.JWTSecret,
+		accessTTL,
+		refreshTTL,
+	)
 	authHandler := handler.NewAuthHandler(authSvc)
 
 	// api v1

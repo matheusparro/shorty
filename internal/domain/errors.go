@@ -12,4 +12,5 @@ var (
 	ErrInvalidToken = errors.New("invalid token")
 	ErrTokenExpired = errors.New("token expired")
 	ErrTokenRevoked = errors.New("token revoked")
+	ErrInvalidShortURL = errors.New("invalid short URL")
 )

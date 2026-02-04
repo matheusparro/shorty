@@ -9,15 +9,17 @@ import (
 type Claims struct {
 	UserID string `json:"uid"`
 	Email  string `json:"email"`
+	Role   string `json:"role"`
 	jwtlib.RegisteredClaims
 }
 
-func SignAccessToken(secret string, userID string, email string, ttl time.Duration) (token string, expiresAt time.Time, err error) {
+func SignAccessToken(secret string, userID string, email string, role string, ttl time.Duration) (token string, expiresAt time.Time, err error) {
 	now := time.Now().UTC()
 	expiresAt = now.Add(ttl)
 
 	claims := Claims{
 		UserID: userID,
+		Role:   role,
 		Email:  email,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			IssuedAt:  jwtlib.NewNumericDate(now),
