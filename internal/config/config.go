@@ -14,21 +14,32 @@ type Config struct {
 	DBPassword string
 	DBName     string
 	DBSSLMode  string
+	
 	JWTSecret string
-	BaseURL  string
+	BaseURL   string
+
+	// Redis configs
+	RedisAddr     string
+	RedisPassword string
+	RedisDB       string
 }
 
 func Load() Config {
 	return Config{
 		AppPort:    getEnv("APP_PORT", "8080"),
-		DBHost:    getEnv("DB_HOST", "localhost"),
-		DBPort:    getEnv("DB_PORT", "5432"),
-		DBUser:    getEnv("DB_USER", "shorty"),
+		DBHost:     getEnv("DB_HOST", "localhost"),
+		DBPort:     getEnv("DB_PORT", "5432"),
+		DBUser:     getEnv("DB_USER", "shorty"),
 		DBPassword: getEnv("DB_PASSWORD", "shorty"),
-		DBName:    getEnv("DB_NAME", "shorty"),
-		DBSSLMode: getEnv("DB_SSLMODE", "disable"),
-		JWTSecret: os.Getenv("JWT_SECRET"),
-		BaseURL:  getEnv("BASE_URL", "http://localhost:8080"),
+		DBName:     getEnv("DB_NAME", "shorty"),
+		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
+		JWTSecret:  os.Getenv("JWT_SECRET"),
+		BaseURL:    getEnv("BASE_URL", "http://localhost:8080"),
+		
+		// Redis
+		RedisAddr:     getEnv("REDIS_ADDR", "localhost:6379"),
+		RedisPassword: getEnv("REDIS_PASSWORD", ""),
+		RedisDB:       getEnv("REDIS_DB", "0"),
 	}
 }
 

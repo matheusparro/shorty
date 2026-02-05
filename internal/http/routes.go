@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/matheusparro/shorty/internal/cache"
 	"github.com/matheusparro/shorty/internal/config"
 	"github.com/matheusparro/shorty/internal/handler"
 	"github.com/matheusparro/shorty/internal/http/middleware"
@@ -13,14 +14,22 @@ import (
 	"github.com/matheusparro/shorty/internal/service"
 )
 
-func RegisterRoutes(app *fiber.App, db *pgxpool.Pool, cfg *config.Config) {
-	// health
+func RegisterRoutes(app *fiber.App, db *pgxpool.Pool, redisClient *cache.RedisClient, cfg *config.Config) {
+	// health (já checa DB, agora checa Redis também)
 	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"status": "ok"})
+		status := fiber.Map{"status": "ok", "database": "connected"}
+		
+		if redisClient != nil {
+			status["cache"] = "connected"
+		} else {
+			status["cache"] = "unavailable"
+		}
+		
+		return c.JSON(status)
 	})
 
 	// -----------------------
-	// AUTH (já existia)
+	// AUTH
 	// -----------------------
 	userRepo := postgres.NewUserPG(db)
 	refreshRepo := postgres.NewRefreshTokenPG(db)
@@ -38,11 +47,14 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool, cfg *config.Config) {
 	authHandler := handler.NewAuthHandler(authSvc)
 
 	// -----------------------
-	// SHORT URL (NEW)
+	// SHORT URL
 	// -----------------------
-	shortURLRepo := postgres.NewShortURLPG(db)                // NEW
-	shortURLSvc := service.NewShortURLService(shortURLRepo)  // NEW
-	shortURLHandler := handler.NewShortURLHandler(shortURLSvc, cfg.BaseURL) // NEW
+	shortURLRepo := postgres.NewShortURLPG(db)
+	
+	// Passa o Redis para o serviço (pode ser nil)
+	shortURLSvc := service.NewShortURLService(shortURLRepo, redisClient)
+	
+	shortURLHandler := handler.NewShortURLHandler(shortURLSvc, cfg.BaseURL)
 
 	// api v1
 	api := app.Group("/api")
@@ -53,8 +65,8 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool, cfg *config.Config) {
 	auth.Post("/register", authHandler.Register)
 	auth.Post("/login", authHandler.Login)
 
-	// redirect público (NEW)
-	v1.Get("/r/:code", shortURLHandler.Redirect) // NEW
+	// redirect público
+	v1.Get("/r/:code", shortURLHandler.Redirect)
 
 	// rotas protegidas
 	protected := v1.Group("/", middleware.JWTAuth(cfg.JWTSecret))
@@ -65,6 +77,6 @@ func RegisterRoutes(app *fiber.App, db *pgxpool.Pool, cfg *config.Config) {
 		return c.JSON(fiber.Map{"userId": userID, "email": email})
 	})
 
-	// criar short url (NEW)
-	protected.Post("/shorturls", shortURLHandler.Create) // NEW
+	// criar short url
+	protected.Post("/shorturls", shortURLHandler.Create)
 }

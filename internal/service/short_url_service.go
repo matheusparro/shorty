@@ -6,8 +6,11 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"log"
 	"strings"
+	"time"
 
+	"github.com/matheusparro/shorty/internal/cache"
 	"github.com/matheusparro/shorty/internal/domain"
 	"github.com/matheusparro/shorty/internal/repository"
 	"github.com/matheusparro/shorty/internal/service/input"
@@ -17,10 +20,14 @@ var ErrInvalidURL = errors.New("invalid url")
 
 type ShortURLService struct {
 	ShortURLRepository repository.ShortURLRepository
+	RedisClient        *cache.RedisClient
 }
 
-func NewShortURLService(shortURLRepo repository.ShortURLRepository) *ShortURLService {
-	return &ShortURLService{ShortURLRepository: shortURLRepo}
+func NewShortURLService(shortURLRepo repository.ShortURLRepository, redisClient *cache.RedisClient) *ShortURLService {
+	return &ShortURLService{
+		ShortURLRepository: shortURLRepo,
+		RedisClient:        redisClient,
+	}
 }
 
 func (s *ShortURLService) CreateShortURL(ctx context.Context, in input.CreateShortURLInput) (*domain.ShortURL, error) {
@@ -31,7 +38,7 @@ func (s *ShortURLService) CreateShortURL(ctx context.Context, in input.CreateSho
 		return nil, errors.New("user id is required")
 	}
 
-	shortCode := generateShortCode(7) // 7 chars (ajusta se quiser)
+	shortCode := generateShortCode(7)
 
 	entity, err := domain.NewShortURL(in.OriginalURL, shortCode, in.UserID, in.ExpiresAt)
 	if err != nil {
@@ -41,6 +48,8 @@ func (s *ShortURLService) CreateShortURL(ctx context.Context, in input.CreateSho
 	if err := s.ShortURLRepository.Create(ctx, entity); err != nil {
 		return nil, err
 	}
+	
+	s.RedisClient.Client().SetEx(ctx, shortCode, entity.OriginalURL, time.Until(*entity.ExpiresAt))
 
 	return entity, nil
 }
@@ -56,5 +65,17 @@ func (s *ShortURLService) FindActiveForRedirect(
 	ctx context.Context,
 	shortCode string,
 ) (string, error) {
+	
+	if s.RedisClient != nil {
+		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+
+		url, err := s.RedisClient.Client().Get(ctx, shortCode).Result()
+		if err == nil {
+			log.Default().Println("Cache hit for short code:", shortCode)
+			return url, nil
+		}
+	}
+
 	return s.ShortURLRepository.FindActiveURLForRedirect(ctx, shortCode)
 }

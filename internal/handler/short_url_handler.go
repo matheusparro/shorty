@@ -72,5 +72,5 @@ func (h *ShortURLHandler) Redirect(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "short URL not found"})
 	}
-	return c.Redirect(url, fiber.StatusFound) // 302
+	return c.Redirect(url, fiber.StatusTemporaryRedirect) // 307
 }
