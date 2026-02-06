@@ -124,10 +124,12 @@ func (s *AuthService) Login(ctx context.Context, emailRaw, password string) (*Lo
 
 	user, err := s.users.FindByEmail(ctx, email.String())
 	if err != nil {
+		log.Println("Erro ao buscar usuário:", err)
 		return nil, domain.ErrInvalidCredentials
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		log.Println("Senha inválida para o usuário:", email.String())
 		return nil, domain.ErrInvalidCredentials
 	}
 
@@ -140,12 +142,14 @@ func (s *AuthService) Login(ctx context.Context, emailRaw, password string) (*Lo
 		s.accessTTL,
 	)
 	if err != nil {
+		log.Println("Erro ao gerar access token:", err)
 		return nil, err
 	}
 
 	// 2) refresh token (longo) + salvar HASH no banco
 	refreshRaw, err := refresh.NewToken()
 	if err != nil {
+		log.Println("Erro ao gerar refresh token:", err)
 		return nil, err
 	}
 
@@ -153,6 +157,7 @@ func (s *AuthService) Login(ctx context.Context, emailRaw, password string) (*Lo
 	refreshExp := time.Now().UTC().Add(s.refreshTTL)
 
 	if err := s.refresh.Save(ctx, user.ID, refreshHash, refreshExp); err != nil {
+		log.Println("Erro ao salvar refresh token:", err)
 		return nil, err
 	}
 

@@ -58,7 +58,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 			"error": "invalid payload",
 		})
 	}
-
+	log.Println("CHEGUEI NO LOGIN",c.Context(), req.Email, req.Password)
 	res, err := h.auth.Login(c.Context(), req.Email, req.Password)
 	if err != nil {
 		return h.mapError(c, err)

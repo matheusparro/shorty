@@ -9,6 +9,7 @@ import (
 	"github.com/matheusparro/shorty/internal/handler/dto"
 	"github.com/matheusparro/shorty/internal/service"
 	"github.com/matheusparro/shorty/internal/service/input"
+	sinput "github.com/matheusparro/shorty/internal/service/input"
 )
 
 type ShortURLHandler struct {
@@ -57,7 +58,7 @@ func (h *ShortURLHandler) Create(c *fiber.Ctx) error {
 	}
 
 	// Se tua rota de redirect é /api/v1/r/:code, monta certinho:
-	shortURL := h.baseURL + "/api/v1/r/" + entity.ShortCode
+	shortURL := h.baseURL + "/" + entity.ShortCode
 
 	return c.Status(fiber.StatusCreated).JSON(dto.CreateShortURLResponse{
 		ShortCode: entity.ShortCode,
@@ -68,9 +69,16 @@ func (h *ShortURLHandler) Create(c *fiber.Ctx) error {
 func (h *ShortURLHandler) Redirect(c *fiber.Ctx) error {
 	code := c.Params("code")
 
-	url, err := h.service.FindActiveForRedirect(c.Context(), code)
+	url, err := h.service.FindActiveForRedirect(c.Context(), sinput.RedirectInput{
+		Code:      code,
+		IP:        c.IP(),
+		UserAgent: c.Get("User-Agent"),
+		Referer:   c.Get("Referer"),
+	})
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "short URL not found"})
 	}
-	return c.Redirect(url, fiber.StatusTemporaryRedirect) // 307
+
+	return c.Redirect(url, fiber.StatusTemporaryRedirect)
 }
+

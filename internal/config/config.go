@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -18,10 +20,12 @@ type Config struct {
 	JWTSecret string
 	BaseURL   string
 
-	// Redis configs
 	RedisAddr     string
 	RedisPassword string
 	RedisDB       string
+
+	KafkaBrokers []string
+	KafkaEnabled bool
 }
 
 func Load() Config {
@@ -36,10 +40,12 @@ func Load() Config {
 		JWTSecret:  os.Getenv("JWT_SECRET"),
 		BaseURL:    getEnv("BASE_URL", "http://localhost:8080"),
 		
-		// Redis
 		RedisAddr:     getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword: getEnv("REDIS_PASSWORD", ""),
 		RedisDB:       getEnv("REDIS_DB", "0"),
+
+		KafkaBrokers: getEnvSlice("KAFKA_BROKERS", []string{"localhost:9092"}),
+		KafkaEnabled: getEnvBool("KAFKA_ENABLED", true),
 	}
 }
 
@@ -58,6 +64,23 @@ func (c Config) PostgresDSN() string {
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return fallback
+}
+
+func getEnvSlice(key string, fallback []string) []string {
+	if v := os.Getenv(key); v != "" {
+		return strings.Split(v, ",")
+	}
+	return fallback
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	if v := os.Getenv(key); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err == nil {
+			return b
+		}
 	}
 	return fallback
 }

@@ -15,6 +15,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - shorty-network
 
   redis:
     image: redis:7-alpine
@@ -29,7 +31,85 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+    networks:
+      - shorty-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: shorty-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+    networks:
+      - shorty-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: shorty-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      
+      # Listeners: INTERNAL para containers, EXTERNAL para host
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9093,EXTERNAL://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      
+      # Configurações de replicação (1 réplica pq só tem 1 broker)
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      
+      # Auto-create topics quando publicar
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      
+      # Retenção de logs (7 dias)
+      KAFKA_LOG_RETENTION_HOURS: 168
+      
+      # Compactação de logs
+      KAFKA_LOG_CLEANUP_POLICY: delete
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9093"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - shorty-network
+
+  # Kafka UI (opcional - para visualizar topics, mensagens, etc)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: shorty-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - shorty-network
 
 volumes:
   pgdata:
   redisdata:
+  zookeeper-data:
+  zookeeper-logs:
+  kafka-data:
+
+networks:
+  shorty-network:
+    driver: bridge
