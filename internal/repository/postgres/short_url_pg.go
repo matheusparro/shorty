@@ -119,4 +119,15 @@ func (r *ShortURLPG) IncrementVisit(ctx context.Context, shortCode string) error
 	return err
 }
 
+func (r *ShortURLPG) ExistsShortCode(ctx context.Context, shortCode string) (bool, error) {
+	const q = `
+		select exists (
+			select 1 from short_urls where short_code = $1
+		)
+	`
+	var exists bool
+	err := r.db.QueryRow(ctx, q, shortCode).Scan(&exists)
+	return exists, err
+}
+
 

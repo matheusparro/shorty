@@ -2,11 +2,9 @@ package domain
 
 import (
 	"log"
-	"regexp"
 	"strings"
 )
 
-var emailRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 
 type Email string
 

@@ -12,4 +12,5 @@ type ShortURLRepository interface {
 	FindActiveURLForRedirect(ctx context.Context, shortCode string) (string, error)
 	Inactivate(ctx context.Context, shortCode, userID string) error
 	IncrementVisit(ctx context.Context, shortCode string) error
+	ExistsShortCode(ctx context.Context, shortCode string) (bool, error)
 }

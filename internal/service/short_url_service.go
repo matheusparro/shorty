@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -78,14 +79,37 @@ func (s *ShortURLService) CreateShortURL(ctx context.Context, in input.CreateSho
 	// (Opcional futuro): publicar URLCreatedEvent aqui também.
 	return entity, nil
 }
-
-func generateShortCode(n int) string {
-	b := make([]byte, n+4)
-	_, _ = rand.Read(b)
-	code := base64.RawURLEncoding.EncodeToString(b)
-	return code[:n]
+func (s *ShortURLService) generateUniqueShortCode(ctx context.Context, maxAttempts int) (string, error) {
+    for i := range maxAttempts {
+        code := generateShortCode(7)
+        exists, err := s.ShortURLRepository.ExistsShortCode(ctx, code)
+        if err != nil {
+            return "", err
+        }
+        if !exists {
+            return code, nil
+        }
+        // colisão: tenta novamente, aumentando o comprimento progressivamente
+        if i > 2 {
+            code = generateShortCode(7 + i - 2) // 8, 9... chars após 3 tentativas
+        }
+    }
+    return "", errors.New("failed to generate unique short code after max attempts")
 }
 
+// 8 chars = 64^8 ≈ 281 trilhões de combinações
+// Birthday problem: colisão esperada após ~530 mil entradas (7 chars) vs ~6,7 bilhões (8 chars)
+func generateShortCode(length int) string {
+    b := make([]byte, length)
+    if _, err := rand.Read(b); err != nil {
+        // fallback mais robusto: combina timestamp + uuid truncado
+        nano := strconv.FormatInt(time.Now().UnixNano(), 36)
+        id := base64.URLEncoding.EncodeToString([]byte(uuid.NewString()))
+        combined := nano + id
+        return combined[:length]
+    }
+    return base64.URLEncoding.EncodeToString(b)[:length]
+}
 func (s *ShortURLService) FindActiveForRedirect(ctx context.Context, in input.RedirectInput) (string, error) {
 	shortCode := in.Code
 
