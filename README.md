@@ -310,18 +310,6 @@ go.mod
 
 ---
 
-## Roadmap
-
-- Refresh token endpoint
-- Listagem paginada de URLs
-- Rate limiting
-- Observabilidade (OpenTelemetry)
-- Métricas Prometheus
-- Docker multi-stage build
-- Deploy Kubernetes
-
----
-
 ## Licença
 
 Copyright (c) 2026 Matheus Parro
